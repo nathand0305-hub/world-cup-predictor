@@ -1,63 +1,6 @@
 {
   "users": [],
-  "matches": [
-    {
-      "id": "demo-1",
-      "homeTeam": "Brazil",
-      "awayTeam": "Germany",
-      "homeFlag": "🇧🇷",
-      "awayFlag": "🇩🇪",
-      "startTime": "2026-07-10T19:00:00.000Z",
-      "status": "upcoming",
-      "homeScore": null,
-      "awayScore": null,
-      "venue": "Demo Stadium",
-      "externalId": "demo-1",
-      "updatedAt": "2026-07-03T15:02:47.643Z"
-    },
-    {
-      "id": "demo-2",
-      "homeTeam": "Argentina",
-      "awayTeam": "France",
-      "homeFlag": "🇦🇷",
-      "awayFlag": "🇫🇷",
-      "startTime": "2026-07-11T20:00:00.000Z",
-      "status": "upcoming",
-      "homeScore": null,
-      "awayScore": null,
-      "venue": "Demo Arena",
-      "externalId": "demo-2",
-      "updatedAt": "2026-07-03T15:02:47.644Z"
-    },
-    {
-      "id": "demo-3",
-      "homeTeam": "Spain",
-      "awayTeam": "England",
-      "homeFlag": "🇪🇸",
-      "awayFlag": "🏴",
-      "startTime": "2026-07-12T18:00:00.000Z",
-      "status": "upcoming",
-      "homeScore": null,
-      "awayScore": null,
-      "venue": "Demo Park",
-      "externalId": "demo-3",
-      "updatedAt": "2026-07-03T15:02:47.644Z"
-    },
-    {
-      "id": "demo-4",
-      "homeTeam": "Portugal",
-      "awayTeam": "Netherlands",
-      "homeFlag": "🇵🇹",
-      "awayFlag": "🇳🇱",
-      "startTime": "2026-07-13T21:00:00.000Z",
-      "status": "upcoming",
-      "homeScore": null,
-      "awayScore": null,
-      "venue": "Demo National Stadium",
-      "externalId": "demo-4",
-      "updatedAt": "2026-07-03T15:02:47.644Z"
-    }
-  ],
+  "matches": [],
   "predictions": [],
   "activity": []
 }

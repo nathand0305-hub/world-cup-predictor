@@ -36,7 +36,10 @@ function mapApiFootballFixture(fixture) {
 async function fetchMatchesFromConfiguredApi() {
   const url = process.env.FOOTBALL_API_URL;
   const apiKey = process.env.FOOTBALL_API_KEY;
-  if (!url || !apiKey) return [];
+  if (!url || !apiKey) {
+    console.warn('Real match sync skipped: FOOTBALL_API_URL or FOOTBALL_API_KEY is missing.');
+    return [];
+  }
 
   const headers = {
     'x-apisports-key': apiKey
@@ -48,6 +51,10 @@ async function fetchMatchesFromConfiguredApi() {
 
   const response = await axios.get(url, { headers, timeout: 15000 });
   const payload = response.data;
+
+  if (payload?.errors && Object.keys(payload.errors).length) {
+    throw new Error(`API-Football error: ${JSON.stringify(payload.errors)}`);
+  }
 
   // API-Football format: { response: [fixtures...] }
   if (Array.isArray(payload?.response)) {
@@ -133,21 +140,18 @@ async function syncMatches() {
   const apiMatches = await fetchMatchesFromConfiguredApi();
   if (apiMatches.length) {
     mutateData(data => {
-      apiMatches.forEach(apiMatch => {
-        const existing = data.matches.find(m => m.id === apiMatch.id || (apiMatch.externalId && m.externalId === apiMatch.externalId));
-        if (existing) {
-          Object.assign(existing, apiMatch);
-        } else {
-          data.matches.push(apiMatch);
-        }
-      });
+      // Real-data mode: once the API works, remove all demo/fake matches.
+      // Predictions and users are kept. Match IDs from API-Football stay stable.
+      data.matches = apiMatches;
       data.activity.push({
         id: crypto.randomUUID(),
         type: 'matches_synced',
-        message: `Synced ${apiMatches.length} match(es) from API`,
+        message: `Synced ${apiMatches.length} real World Cup match(es) from API`,
         createdAt: new Date().toISOString()
       });
     });
+  } else {
+    console.warn('Real match sync returned 0 matches. Check FOOTBALL_API_URL, FOOTBALL_API_KEY, and API quota.');
   }
   lockStartedMatchesAndScoreFinishedMatches();
   return readData().matches;
