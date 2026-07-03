@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: world-cup-predictor
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATA_FILE
+        value: /var/data/data.json
+      - key: MATCH_SYNC_INTERVAL_MS
+        value: 60000
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_SYNC_KEY
+        generateValue: true
+      - key: FOOTBALL_API_URL
+        value: ""
+      - key: FOOTBALL_API_KEY
+        value: ""
+      - key: FOOTBALL_API_HOST
+        value: ""
+    disk:
+      name: predictor-data
+      mountPath: /var/data
+      sizeGB: 1

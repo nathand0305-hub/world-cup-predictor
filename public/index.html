@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>World Cup Predictor</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="stadium-glow"></div>
+    <header class="topbar">
+      <div class="brand">
+        <div class="ball">⚽</div>
+        <div>
+          <p class="eyebrow">World Cup 2026</p>
+          <h1>Score Predictor</h1>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="nav-btn active" data-view="matches">Matches</button>
+        <button class="nav-btn" data-view="leaderboard">Leaderboard</button>
+        <button class="nav-btn" data-view="dashboard">Dashboard</button>
+      </nav>
+      <div id="authArea" class="auth-area"></div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Predict before kickoff • exact score = 5 pts • winner = 2 pts</p>
+          <h2>Join the World Cup table and climb only upward.</h2>
+          <p class="hero-copy">Create your account, lock in scores before games start, and watch the leaderboard update live as results come in.</p>
+        </div>
+        <div class="hero-card">
+          <span class="pulse"></span>
+          <p>Live refresh</p>
+          <strong id="refreshStatus">Every 15 seconds</strong>
+        </div>
+      </section>
+
+      <section id="notice" class="notice hidden"></section>
+
+      <section id="authPanel" class="auth-panel hidden">
+        <div class="form-card">
+          <div class="tabs">
+            <button id="joinTab" class="tab active">Join</button>
+            <button id="loginTab" class="tab">Login</button>
+          </div>
+
+          <form id="joinForm" class="auth-form">
+            <label>
+              Full name
+              <input name="name" placeholder="Lionel Messi" autocomplete="name" required />
+            </label>
+            <label>
+              Username
+              <input name="username" placeholder="messi10" autocomplete="username" required />
+            </label>
+            <label>
+              Password
+              <input name="password" type="password" placeholder="At least 6 characters" autocomplete="new-password" required />
+            </label>
+            <button type="submit" class="primary full">Create account</button>
+          </form>
+
+          <form id="loginForm" class="auth-form hidden">
+            <label>
+              Username
+              <input name="username" placeholder="messi10" autocomplete="username" required />
+            </label>
+            <label>
+              Password
+              <input name="password" type="password" autocomplete="current-password" required />
+            </label>
+            <button type="submit" class="primary full">Login</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="matchesView" class="view active">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Fixtures</p>
+            <h3>Upcoming World Cup games</h3>
+          </div>
+          <button id="manualRefresh" class="secondary">Refresh now</button>
+        </div>
+        <div id="matchesGrid" class="grid"></div>
+      </section>
+
+      <section id="leaderboardView" class="view">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Ranking</p>
+            <h3>Leaderboard</h3>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Name</th>
+                <th>Points</th>
+                <th>Exact scores</th>
+                <th>Correct winners</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboardBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="dashboardView" class="view">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">My team room</p>
+            <h3>Dashboard</h3>
+          </div>
+        </div>
+        <div id="dashboardContent"></div>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
