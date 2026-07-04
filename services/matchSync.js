@@ -2,10 +2,12 @@ const crypto = require('crypto');
 const axios = require('axios');
 const { mutateData, readData } = require('../dataStore');
 
+const DEFAULT_ESPN_WORLD_CUP_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=20260611-20260719&limit=1000';
+
 function normalizeStatus(status) {
   const s = String(status || '').toLowerCase();
-  if (['ft', 'aet', 'pen', 'finished', 'match finished', 'full-time'].some(x => s.includes(x))) return 'finished';
-  if (['1h', '2h', 'ht', 'live', 'in progress', 'elapsed'].some(x => s.includes(x))) return 'live';
+  if (['ft', 'aet', 'pen', 'finished', 'match finished', 'full-time', 'final', 'final/so', 'post'].some(x => s.includes(x))) return 'finished';
+  if (['1h', '2h', 'ht', 'live', 'in progress', 'elapsed', 'in', 'halftime'].some(x => s.includes(x))) return 'live';
   return 'upcoming';
 }
 
@@ -26,24 +28,56 @@ function mapApiFootballFixture(fixture) {
     awayFlag: '',
     startTime: fixture.fixture?.date || new Date().toISOString(),
     status,
-    homeScore: status === 'finished' ? safeNumber(fixture.goals?.home) : safeNumber(fixture.goals?.home),
-    awayScore: status === 'finished' ? safeNumber(fixture.goals?.away) : safeNumber(fixture.goals?.away),
+    homeScore: safeNumber(fixture.goals?.home),
+    awayScore: safeNumber(fixture.goals?.away),
     venue: fixture.fixture?.venue?.name || '',
     updatedAt: new Date().toISOString()
   };
 }
 
-async function fetchMatchesFromConfiguredApi() {
-  const url = process.env.FOOTBALL_API_URL;
-  const apiKey = process.env.FOOTBALL_API_KEY;
-  if (!url || !apiKey) {
-    console.warn('Real match sync skipped: FOOTBALL_API_URL or FOOTBALL_API_KEY is missing.');
+function mapEspnEvent(event) {
+  const competition = event.competitions?.[0] || {};
+  const competitors = competition.competitors || [];
+  const home = competitors.find(c => c.homeAway === 'home') || competitors[0] || {};
+  const away = competitors.find(c => c.homeAway === 'away') || competitors[1] || {};
+  const statusType = event.status?.type || competition.status?.type || {};
+  const status = statusType.completed ? 'finished' : normalizeStatus(statusType.name || statusType.state || statusType.description || statusType.detail);
+
+  const homeLogo = home.team?.logos?.[0]?.href || home.team?.logo || '';
+  const awayLogo = away.team?.logos?.[0]?.href || away.team?.logo || '';
+
+  return {
+    id: `espn-${event.id}`,
+    externalId: String(event.id || ''),
+    homeTeam: home.team?.displayName || home.team?.shortDisplayName || home.team?.name || 'Home Team',
+    awayTeam: away.team?.displayName || away.team?.shortDisplayName || away.team?.name || 'Away Team',
+    homeFlag: homeLogo,
+    awayFlag: awayLogo,
+    startTime: event.date || competition.date || new Date().toISOString(),
+    status,
+    homeScore: safeNumber(home.score),
+    awayScore: safeNumber(away.score),
+    venue: competition.venue?.fullName || competition.venue?.displayName || '',
+    updatedAt: new Date().toISOString()
+  };
+}
+
+async function fetchEspnWorldCup(url = DEFAULT_ESPN_WORLD_CUP_URL) {
+  const response = await axios.get(url, { timeout: 20000 });
+  const payload = response.data;
+
+  if (!Array.isArray(payload?.events)) {
     return [];
   }
 
-  const headers = {
-    'x-apisports-key': apiKey
-  };
+  return payload.events
+    .map(mapEspnEvent)
+    .filter(match => match.homeTeam && match.awayTeam && match.startTime)
+    .sort((a, b) => Date.parse(a.startTime) - Date.parse(b.startTime));
+}
+
+async function fetchApiFootball(url, apiKey) {
+  const headers = { 'x-apisports-key': apiKey };
   if (process.env.FOOTBALL_API_HOST) {
     headers['x-rapidapi-host'] = process.env.FOOTBALL_API_HOST;
     headers['x-rapidapi-key'] = apiKey;
@@ -52,16 +86,17 @@ async function fetchMatchesFromConfiguredApi() {
   const response = await axios.get(url, { headers, timeout: 15000 });
   const payload = response.data;
 
-  if (payload?.errors && Object.keys(payload.errors).length) {
+  if (Array.isArray(payload?.errors) && payload.errors.length) {
+    throw new Error(`API-Football error: ${JSON.stringify(payload.errors)}`);
+  }
+  if (payload?.errors && typeof payload.errors === 'object' && Object.keys(payload.errors).length) {
     throw new Error(`API-Football error: ${JSON.stringify(payload.errors)}`);
   }
 
-  // API-Football format: { response: [fixtures...] }
   if (Array.isArray(payload?.response)) {
     return payload.response.map(mapApiFootballFixture);
   }
 
-  // Generic format support if your API already returns matches directly.
   if (Array.isArray(payload?.matches)) {
     return payload.matches.map(match => ({
       id: String(match.id || match.externalId),
@@ -80,6 +115,30 @@ async function fetchMatchesFromConfiguredApi() {
   }
 
   return [];
+}
+
+async function fetchMatchesFromConfiguredApi() {
+  const configuredUrl = process.env.FOOTBALL_API_URL || process.env.ESPN_API_URL || DEFAULT_ESPN_WORLD_CUP_URL;
+  const apiKey = process.env.FOOTBALL_API_KEY;
+
+  // ESPN public scoreboard: no key required. This is the preferred free option for World Cup 2026.
+  if (configuredUrl.includes('espn.com')) {
+    return fetchEspnWorldCup(configuredUrl);
+  }
+
+  // API-Football paid/free-key route. If it blocks 2026 on free plans, fall back to ESPN.
+  if (configuredUrl && apiKey) {
+    try {
+      const matches = await fetchApiFootball(configuredUrl, apiKey);
+      if (matches.length) return matches;
+      console.warn('Configured football API returned 0 matches. Falling back to ESPN World Cup feed.');
+    } catch (error) {
+      console.warn(error.message || error);
+      console.warn('Falling back to ESPN World Cup feed.');
+    }
+  }
+
+  return fetchEspnWorldCup(DEFAULT_ESPN_WORLD_CUP_URL);
 }
 
 function resultType(homeScore, awayScore) {
@@ -140,18 +199,22 @@ async function syncMatches() {
   const apiMatches = await fetchMatchesFromConfiguredApi();
   if (apiMatches.length) {
     mutateData(data => {
-      // Real-data mode: once the API works, remove all demo/fake matches.
-      // Predictions and users are kept. Match IDs from API-Football stay stable.
-      data.matches = apiMatches;
+      // Replace demo/old fixture list with the real current API list, but keep users/predictions/activity.
+      const existingById = new Map(data.matches.map(m => [m.id, m]));
+      const nextMatches = apiMatches.map(apiMatch => ({
+        ...(existingById.get(apiMatch.id) || {}),
+        ...apiMatch
+      }));
+      data.matches = nextMatches;
       data.activity.push({
         id: crypto.randomUUID(),
         type: 'matches_synced',
-        message: `Synced ${apiMatches.length} real World Cup match(es) from API`,
+        message: `Synced ${apiMatches.length} real World Cup match(es)`,
         createdAt: new Date().toISOString()
       });
     });
   } else {
-    console.warn('Real match sync returned 0 matches. Check FOOTBALL_API_URL, FOOTBALL_API_KEY, and API quota.');
+    console.warn('Match sync returned 0 matches. Check API URL/key or ESPN availability.');
   }
   lockStartedMatchesAndScoreFinishedMatches();
   return readData().matches;
